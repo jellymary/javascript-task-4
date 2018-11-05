@@ -4,57 +4,72 @@
  * Сделано задание на звездочку
  * Реализованы методы several и through
  */
-const isStar = false;
+const isStar = true;
 
 /**
  * Возвращает новый emitter
  * @returns {Object}
  */
 function getEmitter() {
-    const listener = new Map();
+    const eventListener = new Map();
 
     return {
 
-        // /**
-        //  * Подписаться на событие
-        //  * @param {String} event
-        //  * @param {Object} context
-        //  * @param {Function} handler
-        //  */
+        /**
+         * Подписаться на событие
+         * @param {String} event
+         * @param {Object} context
+         * @param {Function} handler
+         * @returns {Object} this
+         */
         on: function (event, context, handler) {
-            if (listener.has(event)) {
-                listener.get(event).push({ context, handler });
-            } else {
-                listener.set(event, [{ context, handler }]);
+            if (!eventListener.has(event)) {
+                eventListener.set(event, []);
             }
+            eventListener.get(event).push({
+                context,
+                handler,
+                frequency: 1,
+                times: Infinity,
+                count: 0
+            });
 
             return this;
         },
 
-        // /**
-        //  * Отписаться от события
-        //  * @param {String} event
-        //  * @param {Object} context
-        //  */
+        /**
+         * Отписаться от события
+         * @param {String} event
+         * @param {Object} context
+         * @returns {Object} this
+         */
         off: function (event, context) {
-            for (let [key, value] of listener) {
-                if (getEventNamespace(key).includes(event)) {
-                    const events = value.filter(innerEvent => innerEvent.context !== context);
-                    listener.set(key, events);
+            for (let [key, value] of eventListener) {
+                if (getEventNamespaces(key).includes(event)) {
+                    eventListener.set(
+                        key,
+                        value.filter(e => e.context !== context)
+                    );
                 }
             }
 
             return this;
         },
 
-        // /**
-        //  * Уведомить о событии
-        //  * @param {String} event
-        //  */
+        /**
+         * Уведомить о событии
+         * @param {String} event
+         * @returns {Object} this
+         */
         emit: function (event) {
-            getEventNamespace(event)
-                .forEach(innerEvent => (listener.get(innerEvent) || [])
-                    .forEach(item => item.handler.call(item.context)));
+            getEventNamespaces(event)
+                .forEach(eventNamespace => (eventListener.get(eventNamespace) || [])
+                    .forEach(e => {
+                        if (e.count < e.times && e.count % e.frequency === 0) {
+                            e.handler.call(e.context);
+                        }
+                        e.count++;
+                    }));
 
             return this;
         },
@@ -66,9 +81,21 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} times – сколько раз получить уведомление
+         * @returns {Object} this
          */
         several: function (event, context, handler, times) {
-            console.info(event, context, handler, times);
+            if (!eventListener.has(event)) {
+                eventListener.set(event, []);
+            }
+            eventListener.get(event).push({
+                context,
+                handler,
+                frequency: 1,
+                times: times > 0 ? times : 1,
+                count: 0
+            });
+
+            return this;
         },
 
         /**
@@ -78,21 +105,33 @@ function getEmitter() {
          * @param {Object} context
          * @param {Function} handler
          * @param {Number} frequency – как часто уведомлять
+         * @returns {Object} this
          */
         through: function (event, context, handler, frequency) {
-            console.info(event, context, handler, frequency);
+            if (!eventListener.has(event)) {
+                eventListener.set(event, []);
+            }
+            eventListener.get(event).push({
+                context,
+                handler,
+                frequency: frequency > 0 ? frequency : 1,
+                times: Infinity,
+                count: 0
+            });
+
+            return this;
         }
     };
 }
 
-function getEventNamespace(event) {
-    const eventsCount = (event.match(/\./g) || []).length + 1;
-    const eventNamespace = [];
-    for (let i = eventsCount; i > 0; i--) {
-        eventNamespace.push(event.split('.', i).join('.'));
+function getEventNamespaces(event) {
+    const eventNamespaces = [];
+    const count = (event.match(/\./g) || []).length + 1;
+    for (let i = count; i > 0; i--) {
+        eventNamespaces.push(event.split('.', i).join('.'));
     }
 
-    return eventNamespace;
+    return eventNamespaces;
 }
 
 module.exports = {
