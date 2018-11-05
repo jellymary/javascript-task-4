@@ -4,40 +4,59 @@
  * Сделано задание на звездочку
  * Реализованы методы several и through
  */
-const isStar = true;
+const isStar = false;
 
 /**
  * Возвращает новый emitter
  * @returns {Object}
  */
 function getEmitter() {
+    const listener = new Map();
+
     return {
 
-        /**
-         * Подписаться на событие
-         * @param {String} event
-         * @param {Object} context
-         * @param {Function} handler
-         */
+        // /**
+        //  * Подписаться на событие
+        //  * @param {String} event
+        //  * @param {Object} context
+        //  * @param {Function} handler
+        //  */
         on: function (event, context, handler) {
-            console.info(event, context, handler);
+            if (listener.has(event)) {
+                listener.get(event).push({ context, handler });
+            } else {
+                listener.set(event, [{ context, handler }]);
+            }
+
+            return this;
         },
 
-        /**
-         * Отписаться от события
-         * @param {String} event
-         * @param {Object} context
-         */
+        // /**
+        //  * Отписаться от события
+        //  * @param {String} event
+        //  * @param {Object} context
+        //  */
         off: function (event, context) {
-            console.info(event, context);
+            for (let [key, value] of listener) {
+                if (getEventNamespace(key).includes(event)) {
+                    const events = value.filter(innerEvent => innerEvent.context !== context);
+                    listener.set(key, events);
+                }
+            }
+
+            return this;
         },
 
-        /**
-         * Уведомить о событии
-         * @param {String} event
-         */
+        // /**
+        //  * Уведомить о событии
+        //  * @param {String} event
+        //  */
         emit: function (event) {
-            console.info(event);
+            getEventNamespace(event)
+                .forEach(innerEvent => (listener.get(innerEvent) || [])
+                    .forEach(item => item.handler.call(item.context)));
+
+            return this;
         },
 
         /**
@@ -64,6 +83,16 @@ function getEmitter() {
             console.info(event, context, handler, frequency);
         }
     };
+}
+
+function getEventNamespace(event) {
+    const eventsCount = (event.match(/\./g) || []).length + 1;
+    const eventNamespace = [];
+    for (let i = eventsCount; i > 0; i--) {
+        eventNamespace.push(event.split('.', i).join('.'));
+    }
+
+    return eventNamespace;
 }
 
 module.exports = {
